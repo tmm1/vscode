@@ -14,21 +14,28 @@ import { IModelContentChange } from 'vs/editor/common/textModelEvents';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { ILogService } from 'vs/platform/log/common/log';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
-import { setTimeout0 } from 'vs/base/common/platform';
-import { importAMDNodeModule } from 'vs/amdX';
+import { isWeb, setTimeout0 } from 'vs/base/common/platform';
+import { importAMDNodeModule, resolveAmdNodeModuleAppResourcePath } from 'vs/amdX';
 import { Emitter, Event } from 'vs/base/common/event';
 import { CancellationToken, cancelOnDispose } from 'vs/base/common/cancellation';
 import { IEnvironmentService } from 'vs/platform/environment/common/environment';
-import { canASAR } from 'vs/base/common/amd';
+import { canASAR, isESM } from 'vs/base/common/amd';
 import { CancellationError, isCancellationError } from 'vs/base/common/errors';
 import { PromiseResult } from 'vs/base/common/observableInternal/promise';
 
 const EDITOR_TREESITTER_TELEMETRY = 'editor.experimental.treeSitterTelemetry';
-const MODULE_LOCATION_SUBPATH = `@vscode/tree-sitter-wasm/wasm`;
-const FILENAME_TREESITTER_WASM = `tree-sitter.wasm`;
+const MODULE_NAME = '@vscode/tree-sitter-wasm';
+const MODULE_LOCATION_SUBPATH = `wasm`;
+const FILENAME_TREESITTER_WASM = `tree-sitter`;
 
-function getModuleLocation(environmentService: IEnvironmentService): AppResourcePath {
-	return `${(canASAR && environmentService.isBuilt) ? nodeModulesAsarUnpackedPath : nodeModulesPath}/${MODULE_LOCATION_SUBPATH}`;
+function getWasmLocation(environmentService: IEnvironmentService, filename: string): AppResourcePath {
+	if (isWeb) {
+		return isESM
+			? resolveAmdNodeModuleAppResourcePath(MODULE_NAME, MODULE_LOCATION_SUBPATH)
+			: `${MODULE_NAME}/${MODULE_LOCATION_SUBPATH}/${filename}.wasm` as AppResourcePath;
+	} else {
+		return `${(canASAR && environmentService.isBuilt) ? nodeModulesAsarUnpackedPath : nodeModulesPath}/${MODULE_NAME}/${MODULE_LOCATION_SUBPATH}/${filename}.wasm`;
+	}
 }
 
 export class TextModelTreeSitter extends Disposable {
@@ -270,22 +277,24 @@ export class TreeSitterLanguages extends Disposable {
 
 	private async _fetchLanguage(languageId: string): Promise<Parser.Language | undefined> {
 		const grammarName = this._registeredLanguages.get(languageId);
-		const languageLocation = this._getLanguageLocation(languageId);
-		if (!grammarName || !languageLocation) {
+		if (!grammarName) {
 			return undefined;
 		}
-		const wasmPath: AppResourcePath = `${languageLocation}/${grammarName}.wasm`;
-		const languageFile = await (this._fileService.readFile(FileAccess.asFileUri(wasmPath)));
+		const languageLocation = this._getLanguageLocation(languageId, grammarName);
+		if (!languageLocation) {
+			return undefined;
+		}
+		const languageFile = await (this._fileService.readFile(FileAccess.asFileUri(languageLocation)));
 		const Parser = await this._treeSitterImporter.getParserClass();
 		return Parser.Language.load(languageFile.value.buffer);
 	}
 
-	private _getLanguageLocation(languageId: string): AppResourcePath | undefined {
+	private _getLanguageLocation(languageId: string, filename: string): AppResourcePath | undefined {
 		const grammarName = this._registeredLanguages.get(languageId);
 		if (!grammarName) {
 			return undefined;
 		}
-		return getModuleLocation(this._environmentService);
+		return getWasmLocation(this._environmentService, filename);
 	}
 }
 
@@ -349,7 +358,8 @@ export class TreeSitterTextModelService extends Disposable implements ITreeSitte
 		const environmentService = this._environmentService;
 		await Parser.init({
 			locateFile(_file: string, _folder: string) {
-				return FileAccess.asBrowserUri(`${getModuleLocation(environmentService)}/${FILENAME_TREESITTER_WASM}`).toString(true);
+				const wasmLocation = getWasmLocation(environmentService, FILENAME_TREESITTER_WASM);
+				return FileAccess.asBrowserUri(wasmLocation).toString(true);
 			}
 		});
 		return true;
