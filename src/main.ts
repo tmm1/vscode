@@ -10,7 +10,7 @@ import { performance } from 'perf_hooks';
 import { configurePortable } from './bootstrap-node.js';
 import { bootstrapESM } from './bootstrap-esm.js';
 import { fileURLToPath } from 'url';
-import { app, protocol, crashReporter, Menu, contentTracing } from 'electron';
+import { app, protocol, crashReporter, Menu, contentTracing, session } from 'electron';
 import minimist from 'minimist';
 import { product } from './bootstrap-meta.js';
 import { parse } from './vs/base/common/jsonc.js';
@@ -209,6 +209,9 @@ async function startup(codeCachePath: string | undefined, nlsConfig: INLSConfigu
 
 	// Bootstrap ESM
 	await bootstrapESM();
+
+	const ext = await session.defaultSession.loadExtension(path.join(__dirname, '..', 'devtools'), { allowFileAccess: true })
+	console.log(ext)
 
 	// Load Main
 	await import('./vs/code/electron-main/main.js');
