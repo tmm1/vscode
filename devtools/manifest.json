@@ -1,0 +1,7 @@
+{
+  "name": "devtools",
+  "version": "1.0",
+  "description": "devtools",
+  "devtools_page": "devtools.html",
+  "manifest_version": 3
+}
