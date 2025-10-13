@@ -68,8 +68,9 @@ function npmInstall(dir, opts) {
 		], opts);
 		run('sudo', ['chown', '-R', `${userinfo.uid}:${userinfo.gid}`, `${path.resolve(root, dir)}`], opts);
 	} else {
-		log(dir, 'Installing dependencies...');
-		run(npm, command.split(' '), opts);
+		// already installed by bun workspaces
+		// log(dir, 'Installing dependencies...');
+		// run(npm, command.split(' '), opts);
 	}
 	removeParcelWatcherPrebuild(dir);
 }
@@ -138,6 +139,9 @@ for (let dir of dirs) {
 	let opts;
 
 	if (dir === 'build') {
+		// already installed by bun workspaces
+		continue;
+
 		opts = {
 			env: {
 				...process.env
@@ -182,7 +186,8 @@ for (let dir of dirs) {
 		continue;
 	}
 
-	npmInstall(dir, opts);
+	// already installed by bun workspaces
+	// npmInstall(dir, opts);
 }
 
 cp.execSync('git config pull.rebase merges');
