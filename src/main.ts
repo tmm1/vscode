@@ -207,7 +207,7 @@ async function startup(codeCachePath: string | undefined, nlsConfig: INLSConfigu
 	// Bootstrap ESM
 	await bootstrapESM();
 
-	const ext = await session.defaultSession.loadExtension(path.join(__dirname, '..', 'devtools'), { allowFileAccess: true })
+	const ext = await session.defaultSession.loadExtension(path.join(import.meta.dirname, '..', 'devtools'), { allowFileAccess: true })
 	console.log(ext)
 
 	// Load Main
